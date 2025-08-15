@@ -14,12 +14,35 @@ npm install @ltcode/eyedropper
 
 
 ## Usage
+
+### Manual Usage (with canvas)
 ```js
 import EyeDropper from '@ltcode/eyedropper';
 
 const eyedropper = new EyeDropper();
 eyedropper.open(canvas).then(color => {
-	console.log('Selected color:', color.hex);
+  console.log('Selected color:', color.hex);
+});
+```
+
+### Automated Usage (with image URL)
+```js
+import EyeDropper from '@ltcode/eyedropper';
+
+// Simple usage - just pass image URL
+const eyedropper = new EyeDropper();
+eyedropper.openFromImageUrl('https://example.com/image.jpg').then(color => {
+  console.log('Selected color:', color.hex);
+});
+
+// With custom canvas options
+eyedropper.openFromImageUrl('image.jpg', {}, {
+  width: 500,
+  height: 400,
+  cover: true,
+  position: { top: '20%', left: '20%' }
+}).then(color => {
+  console.log('Selected color:', color.hex);
 });
 ```
 

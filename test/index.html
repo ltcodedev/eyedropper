@@ -1,28 +1,49 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Teste - @ltcode/eyedropper</title>
+  <title>Test - @ltcode/eyedropper</title>
   <style>
     body { font-family: sans-serif; background: #f5f5f5; margin: 0; padding: 32px; }
-    #canvas { border: 2px solid #333; background: #fff; }
-    #btn { margin-top: 24px; padding: 12px 24px; font-size: 1.1em; }
+    #canvas { border: 2px solid #333; background: #fff; margin-bottom: 16px; }
+    .btn { margin: 8px; padding: 12px 24px; font-size: 1.1em; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .btn:hover { background: #005a9e; }
+    .section { margin: 24px 0; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    input[type="url"] { width: 300px; padding: 8px; margin: 8px; }
+    #result { margin-top: 24px; font-size: 1.2em; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>Test - @ltcode/eyedropper</h1>
-  <canvas id="canvas" width="500" height="300"></canvas>
-  <br>
-  <button id="btn">Selecionar cor</button>
-  <div id="result" style="margin-top:24px;font-size:1.2em;"></div>
-  <script type="module">
+  
+  <div class="section">
+    <h3>1. Manual Mode (with canvas)</h3>
+    <canvas id="canvas" width="500" height="300"></canvas>
+    <br>
+    <button class="btn" id="btn-manual">Pick color from canvas</button>
+    <button class="btn" id="btn-upload">Upload image to canvas</button>
+    <input type="file" id="file-input" accept="image/*" style="display:none;">
+  </div>
 
+  <div class="section">
+    <h3>2. Automated Mode (with image URL)</h3>
+    <input type="url" id="url-input" placeholder="Enter image URL (e.g., https://picsum.photos/400/300)" value="https://picsum.photos/400/300">
+    <br>
+    <button class="btn" id="btn-auto">Pick color from URL</button>
+    <button class="btn" id="btn-auto-custom">Pick color from URL (custom size)</button>
+  </div>
+
+  <div id="result"></div>
+
+  <script type="module">
     import EyeDropper from '../src/EyeDropper.js';
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const resultDiv = document.getElementById('result');
 
     // Draw default pattern
     function drawDefault() {
-      const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d');
       canvas.width = 500;
       canvas.height = 300;
       ctx.fillStyle = '#3498db';
@@ -34,12 +55,84 @@
       ctx.fillStyle = '#2ecc40';
       ctx.fill();
     }
+
+    function showResult(color) {
+      resultDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 40px; height: 40px; background: ${color.hex}; border: 2px solid #333; border-radius: 4px;"></div>
+          <div>
+            <div>HEX: ${color.hex}</div>
+            <div>RGB: rgb(${color.rgb.join(', ')})</div>
+          </div>
+        </div>
+      `;
+    }
+
     drawDefault();
 
-    document.getElementById('btn').onclick = async () => {
-      const canvas = document.getElementById('canvas');
-      const eyedropper = new EyeDropper();
-      const color = await eyedropper.open(canvas);
+    // Manual mode - canvas
+    document.getElementById('btn-manual').onclick = async () => {
+      try {
+        const eyedropper = new EyeDropper();
+        const color = await eyedropper.open(canvas);
+        showResult(color);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    };
+
+    // Upload image to canvas
+    document.getElementById('btn-upload').onclick = () => {
+      document.getElementById('file-input').click();
+    };
+
+    document.getElementById('file-input').onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const img = new Image();
+        img.onload = () => {
+          EyeDropper.drawImageToCanvas(img, canvas);
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(file);
+      }
+    };
+
+    // Automated mode - image URL
+    document.getElementById('btn-auto').onclick = async () => {
+      const url = document.getElementById('url-input').value;
+      if (!url) {
+        alert('Please enter an image URL');
+        return;
+      }
+      try {
+        const eyedropper = new EyeDropper();
+        const color = await eyedropper.openFromImageUrl(url);
+        showResult(color);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    };
+
+    // Automated mode with custom options
+    document.getElementById('btn-auto-custom').onclick = async () => {
+      const url = document.getElementById('url-input').value;
+      if (!url) {
+        alert('Please enter an image URL');
+        return;
+      }
+      try {
+        const eyedropper = new EyeDropper();
+        const color = await eyedropper.openFromImageUrl(url, {}, {
+          width: 600,
+          height: 400,
+          cover: true,
+          position: { top: '20%', left: '20%' }
+        });
+        showResult(color);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
     };
   </script>
 </body>
