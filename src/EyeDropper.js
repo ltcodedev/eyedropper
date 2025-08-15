@@ -2,6 +2,21 @@
 // @ltcode/eyedropper
 // Color picker library for selecting pixel color from images/canvas on the web
 
+/**
+ * EyeDropper - Color picker library for selecting pixel color from images/canvas on the web
+ *
+ * ReactJS usage example:
+ *   import EyeDropper from '@ltcode/eyedropper';
+ *   const ref = useRef();
+ *   const pickColor = async () => {
+ *     const eyedropper = new EyeDropper();
+ *     const color = await eyedropper.open(ref.current);
+ *     // color.hex, color.rgb
+ *   };
+ *   <canvas ref={ref} ... />
+ *
+ * Note: Only call .open() in browser/client-side code (not SSR).
+ */
 class EyeDropper {
   /**
    * @param {Object} options - Global customization options (can be overridden in open)
@@ -32,6 +47,10 @@ class EyeDropper {
    * @param {Object} [options] - Options to override those from the constructor
    */
     open(canvasOrContext, options = {}) {
+      // Ensure running in browser (not SSR)
+      if (typeof window === 'undefined' || typeof document === 'undefined') {
+        throw new Error('EyeDropper can only be used in the browser environment.');
+      }
       this.options = { ...this.options, ...options };
       return new Promise((resolve) => {
         this._resolve = resolve;

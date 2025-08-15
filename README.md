@@ -12,15 +12,39 @@ JavaScript library for picking colors (EyeDropper) in web applications, compatib
 npm install @ltcode/eyedropper
 ```
 
+
 ## Usage
 ```js
-import { EyeDropper } from '@ltcode/eyedropper';
+import EyeDropper from '@ltcode/eyedropper';
 
 const eyedropper = new EyeDropper();
-eyedropper.open().then(color => {
+eyedropper.open(canvas).then(color => {
 	console.log('Selected color:', color.hex);
 });
 ```
+
+### Usage with ReactJS
+```jsx
+import React, { useRef } from 'react';
+import EyeDropper from '@ltcode/eyedropper';
+
+function ColorPicker() {
+	const canvasRef = useRef();
+	const pickColor = async () => {
+		const eyedropper = new EyeDropper();
+		const color = await eyedropper.open(canvasRef.current);
+		alert(color.hex);
+	};
+	return (
+		<>
+			<canvas ref={canvasRef} width={300} height={200} />
+			<button onClick={pickColor}>Pick color</button>
+		</>
+	);
+}
+```
+
+> **Note:** Only call `.open()` in browser/client-side code (not SSR).
 
 ## Features
 - Magnifier for pixel precision
