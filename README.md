@@ -3,9 +3,18 @@
 
 # @ltcode/eyedropper
 
-> ⚠️ This library is in **alpha** (`1.1.0`). APIs and behavior may change without notice.
+> ⚠️ This library is in **alpha** (`1.2.0`). APIs and behavior may change without notice.
 
 JavaScript library for picking colors (EyeDropper) in web applications, compatible with all modern browsers, including Linux/Wayland environments.
+
+## ✨ Features
+- 🎯 **Pixel-perfect color picking** with magnifier
+- 🖱️ **Smooth interactions** with throttled mouse events
+- 🎨 **Real-time color preview** with HEX values
+- 🖼️ **Multiple input support** (canvas, images, URLs)
+- 🎭 **Customizable UI** with CSS classes and IDs
+- 🌐 **Universal compatibility** (modern browsers, Electron, Wayland)
+- 📦 **Zero dependencies** and lightweight
 
 ## Installation
 ```sh
@@ -99,9 +108,30 @@ function ColorPicker() {
 > **Note:** Only call `.open()` in browser/client-side code (not SSR).
 
 ## Features
-- Magnifier for pixel precision
-- Color preview and HEX value
-- Example images support for testing
+- 🔍 **Magnifier with crosshair** for pixel precision
+- 🎨 **Real-time color preview** with HEX values
+- ⚡ **Optimized performance** with Canvas2D `willReadFrequently`
+- 🎭 **Customizable styling** with CSS classes and IDs
+- 🖼️ **Multiple formats** support (canvas, images, URLs)
+- 📱 **Touch-friendly** interface
+- 🌐 **Cross-platform** compatibility
+
+### Performance Optimizations
+- Canvas2D contexts optimized with `willReadFrequently: true`
+- Mouse events throttled with `requestAnimationFrame`
+- Efficient RGB to HEX conversion with bitwise operations
+- Smart caching of canvas contexts and dimensions
+- Passive event listeners for better scroll performance
+
+### CSS Classes for Customization
+The library adds CSS classes to all elements for easy styling:
+- `.eyedropper-overlay` - Main overlay container
+- `.eyedropper-magnifier` - Magnifier circle
+- `.eyedropper-crosshair` - Crosshair inside magnifier
+- `.eyedropper-preview` - Color preview box
+- `.eyedropper-preview-color` - Color swatch
+- `.eyedropper-color-display` - HEX text display
+- `.eyedropper-magnifier-canvas` - Magnifier canvas
 
 ## Picking color from any page region (with html2canvas)
 

@@ -75,29 +75,20 @@ class EyeDropper {
   }
 
   /**
-   * EyeDropper - Color picker library for selecting pixel color from images/canvas on the web
-   * Usage:
-   *   const eyedropper = new EyeDropper();
-   *   eyedropper.open(canvas).then(color => { ... });
-   */
-  /**
    * Opens the color picker over an existing canvas.
    * @param {HTMLCanvasElement|CanvasRenderingContext2D} canvasOrContext - Canvas or 2D context for color picking
+   * @param {Object} [options] - Options to override those from the constructor
    * @returns {Promise<{hex: string, rgb: [number, number, number]}>}
    */
-  /**
-   * @param {HTMLCanvasElement|CanvasRenderingContext2D} canvasOrContext
-   * @param {Object} [options] - Options to override those from the constructor
-   */
-    open(canvasOrContext, options = {}) {
-      // Ensure running in browser (not SSR)
-      if (typeof window === 'undefined' || typeof document === 'undefined') {
-        throw new Error('EyeDropper can only be used in the browser environment.');
-      }
-      this.options = { ...this.options, ...options };
-      return new Promise((resolve) => {
-        this._resolve = resolve;
-        this._createUI(canvasOrContext);
+  open(canvasOrContext, options = {}) {
+    // Ensure running in browser (not SSR)
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      throw new Error('EyeDropper can only be used in the browser environment.');
+    }
+    this.options = { ...this.options, ...options };
+    return new Promise((resolve) => {
+      this._resolve = resolve;
+      this._createUI(canvasOrContext);
       });
     }
 
@@ -115,14 +106,20 @@ class EyeDropper {
       }
       this._canvas = canvas;
 
+            // Optimize canvas context for frequent getImageData operations
+      const ctx = this._canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        throw new Error('Failed to get 2D context from canvas.');
+      }
+
   // Overlay container
       this._container = document.createElement('div');
       this._container.className = 'eyedropper-overlay';
       this._container.id = 'eyedropper-overlay';
       Object.assign(this._container.style, {
         position: 'fixed',
-        top: 0,
-        left: 0,
+        top: '0',
+        left: '0',
         width: '100vw',
         height: '100vh',
         background: (this.options.overlay && this.options.overlay.background) || 'rgba(0,0,0,0.0)',
@@ -152,6 +149,17 @@ class EyeDropper {
         ...magOpt.style,
       });
       this._container.appendChild(this._magnifier);
+
+      // Cache the canvas context and dimensions for performance
+      this._canvasCache = {
+        ctx: ctx,
+        width: this._canvas.width,
+        height: this._canvas.height,
+        scaleX: this._canvas.width / this._canvas.getBoundingClientRect().width,
+        scaleY: this._canvas.height / this._canvas.getBoundingClientRect().height,
+        magW: parseInt(magOpt.width || '80'),
+        magH: parseInt(magOpt.height || '80')
+      };
 
       // Create crosshair element once (as child of magnifier)
       this._crosshair = document.createElement('div');
@@ -195,6 +203,26 @@ class EyeDropper {
         minWidth: prevOpt.minWidth || '80px',
         ...prevOpt.style,
       });
+
+      // Create color preview elements
+      this._previewColor = document.createElement('div');
+      this._previewColor.className = 'eyedropper-preview-color';
+      this._previewColor.id = 'eyedropper-preview-color';
+      Object.assign(this._previewColor.style, {
+        width: '20px',
+        height: '20px',
+        borderRadius: '3px',
+        border: '1px solid #ccc',
+        flexShrink: '0'
+      });
+
+      this._colorDisplay = document.createElement('span');
+      this._colorDisplay.className = 'eyedropper-color-display';
+      this._colorDisplay.id = 'eyedropper-color-display';
+      this._colorDisplay.textContent = '#000000';
+
+      this._preview.appendChild(this._previewColor);
+      this._preview.appendChild(this._colorDisplay);
       this._container.appendChild(this._preview);
 
       // Initialize last pixel data for when mouse leaves
@@ -225,119 +253,83 @@ class EyeDropper {
       this._preview.style.display = 'flex';
     }
 
-    // Helper method to get pixel data efficiently using cache
-    _getPixelData(x, y) {
-      // Cache image data region to reduce getImageData calls
-      const cacheSize = 50; // Cache a 50x50 region
-      const cacheKey = `${Math.floor(x / cacheSize)}_${Math.floor(y / cacheSize)}`;
-      
-      if (!this._imageDataCache || this._imageDataCache.key !== cacheKey) {
-        const cacheX = Math.floor(x / cacheSize) * cacheSize;
-        const cacheY = Math.floor(y / cacheSize) * cacheSize;
-        const width = Math.min(cacheSize, this._canvas.width - cacheX);
-        const height = Math.min(cacheSize, this._canvas.height - cacheY);
-        
-        this._imageDataCache = {
-          key: cacheKey,
-          data: this._canvasCache.ctx.getImageData(cacheX, cacheY, width, height),
-          startX: cacheX,
-          startY: cacheY,
-          width: width,
-          height: height
-        };
-      }
-      
-      // Get pixel from cached region
-      const localX = x - this._imageDataCache.startX;
-      const localY = y - this._imageDataCache.startY;
-      const pixelIndex = (localY * this._imageDataCache.width + localX) * 4;
-      const cachedData = this._imageDataCache.data.data;
-      
-      return [
-        cachedData[pixelIndex],     // R
-        cachedData[pixelIndex + 1], // G
-        cachedData[pixelIndex + 2], // B
-        cachedData[pixelIndex + 3]  // A
-      ];
+        _onMouseEnter(e) {
+      // Hide cursor and show magnifier and preview on mouse enter
+      this._canvas.style.cursor = 'none';
+      this._magnifier.style.display = 'block';
+      this._preview.style.display = 'flex';
     }
 
-    _onMouseMove(e) {
-      // Cache canvas context and dimensions if not cached
-      if (!this._canvasCache) {
-        const rect = this._canvas.getBoundingClientRect();
-        this._canvasCache = {
-          ctx: this._canvas.getContext('2d'),
-          scaleX: this._canvas.width / rect.width,
-          scaleY: this._canvas.height / rect.height,
-          magW: parseInt((this.options.magnifier && this.options.magnifier.width) || 80, 10),
-          magH: parseInt((this.options.magnifier && this.options.magnifier.height) || 80, 10)
-        };
-      }
-
+        _onMouseMove(e) {
       const rect = this._canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) * this._canvasCache.scaleX);
-      const y = Math.floor((e.clientY - rect.top) * this._canvasCache.scaleY);
+      const x = Math.floor(e.clientX - rect.left);
+      const y = Math.floor(e.clientY - rect.top);
+
+      // Simple getImageData call - optimized by willReadFrequently context
+      const imageData = this._canvasCache.ctx.getImageData(x, y, 1, 1);
+      const [r, g, b] = imageData.data;
+
+      // Update preview with current color
+      const hexColor = this._rgbToHex(r, g, b);
+      this._previewColor.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      this._colorDisplay.textContent = hexColor;
+
+      // Update magnifier position and content
+      this._updateMagnifier(x, y, e, [r, g, b], hexColor);
+    }
+
+    _updateMagnifier(x, y, e, rgb, hex) {
+      // Update magnifier position
+      this._magnifier.style.left = `${e.clientX - this._canvasCache.magW / 2}px`;
+      this._magnifier.style.top = `${e.clientY - this._canvasCache.magH / 2}px`;
       
-      // Store position data for later use (no pixel data needed during movement)
-      this._currentPosition = { x, y, clientX: e.clientX, clientY: e.clientY };
-
-    // Magnifier positioning
-    this._magnifier.style.display = 'block';
-    this._magnifier.style.left = `${e.clientX - this._canvasCache.magW / 2}px`;
-    this._magnifier.style.top = `${e.clientY - this._canvasCache.magH / 2}px`;
-    
-    this._drawMagnifier(x, y);
-
-    // Preview - show position info without color data during movement
-    this._preview.style.display = 'flex';
-    // Custom HTML or default
-    if (typeof this.options.renderPreview === 'function') {
-      // For custom preview, pass minimal data during movement
-      this._preview.innerHTML = this.options.renderPreview({ 
-        hex: '#000000', 
-        rgb: [0, 0, 0], 
-        x, 
-        y, 
-        event: e,
-        isMoving: true 
-      });
-    } else {
-      // Show position info instead of color during movement
-      const positionText = `<span style="font-weight:bold;">Position: ${x}, ${y}</span>`;
-      this._preview.innerHTML = positionText;
-    }
-    // Position preview below magnifier, centered
-    const previewRect = { w: this._preview.offsetWidth, h: this._preview.offsetHeight };
-    const px = e.clientX - this._canvasCache.magW / 2;
-    const py = e.clientY + this._canvasCache.magH / 2 + 8;
-    this._preview.style.left = `${px + this._canvasCache.magW / 2 - previewRect.w / 2}px`;
-    this._preview.style.top = `${py}px`;
-    // Callback onMove with minimal data
-    if (typeof this.options.onMove === 'function') {
-      this.options.onMove({ hex: null, rgb: null, x, y, event: e, isMoving: true });
-    }
+      // Draw magnifier content
+      this._drawMagnifier(x, y);
+      
+      // Position preview below magnifier
+      const previewRect = { w: this._preview.offsetWidth, h: this._preview.offsetHeight };
+      const px = e.clientX - this._canvasCache.magW / 2;
+      const py = e.clientY + this._canvasCache.magH / 2 + 8;
+      this._preview.style.left = `${px + this._canvasCache.magW / 2 - previewRect.w / 2}px`;
+      this._preview.style.top = `${py}px`;
+      
+      // Store last pixel data
+      this._lastPixel = {
+        x: x,
+        y: y,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        hex: hex,
+        rgb: rgb
+      };
     }
 
     _onMouseLeave() {
-      // Keep magnifier visible at last position if we have current position
-      if (this._currentPosition && this._canvasCache) {
+      // Keep magnifier and preview visible showing last selected pixel
+      if (this._lastPixel && this._canvasCache) {
         // Keep magnifier at last position using cached dimensions
-        this._magnifier.style.left = `${this._currentPosition.clientX - this._canvasCache.magW / 2}px`;
-        this._magnifier.style.top = `${this._currentPosition.clientY - this._canvasCache.magH / 2}px`;
+        this._magnifier.style.left = `${this._lastPixel.clientX - this._canvasCache.magW / 2}px`;
+        this._magnifier.style.top = `${this._lastPixel.clientY - this._canvasCache.magH / 2}px`;
         
-        this._drawMagnifier(this._currentPosition.x, this._currentPosition.y);
+        this._drawMagnifier(this._lastPixel.x, this._lastPixel.y);
         
-        // Keep preview with position info
-        this._preview.innerHTML = `<span style="font-weight:bold;">Last position: ${this._currentPosition.x}, ${this._currentPosition.y}</span>`;
+        // Keep preview with last pixel data
+        if (typeof this.options.renderPreview === 'function') {
+          this._preview.innerHTML = this.options.renderPreview(this._lastPixel);
+        } else {
+          const colorBox = `<span style="display:inline-block;width:24px;height:24px;background:${this._lastPixel.hex};border:1px solid #ccc;"></span>`;
+          const hexText = `<span style="font-weight:bold;">${this._lastPixel.hex}</span>`;
+          this._preview.innerHTML = `${colorBox} ${hexText}`;
+        }
         
         // Position preview below magnifier
         const previewRect = { w: this._preview.offsetWidth, h: this._preview.offsetHeight };
-        const px = this._currentPosition.clientX - this._canvasCache.magW / 2;
-        const py = this._currentPosition.clientY + this._canvasCache.magH / 2 + 8;
+        const px = this._lastPixel.clientX - this._canvasCache.magW / 2;
+        const py = this._lastPixel.clientY + this._canvasCache.magH / 2 + 8;
         this._preview.style.left = `${px + this._canvasCache.magW / 2 - previewRect.w / 2}px`;
         this._preview.style.top = `${py}px`;
       } else {
-        // If no current position, hide elements and restore cursor
+        // If no last pixel, hide elements and restore cursor
         this._canvas.style.cursor = 'default';
         this._magnifier.style.display = 'none';
         this._preview.style.display = 'none';
@@ -345,26 +337,34 @@ class EyeDropper {
     }
 
     _onClick(e) {
-      // Get current position (use cached position or calculate)
-      const position = this._currentPosition || (() => {
-        const rect = this._canvas.getBoundingClientRect();
-        return {
-          x: Math.floor((e.clientX - rect.left) * (this._canvasCache?.scaleX || (this._canvas.width / rect.width))),
-          y: Math.floor((e.clientY - rect.top) * (this._canvasCache?.scaleY || (this._canvas.height / rect.height))),
-          clientX: e.clientX,
-          clientY: e.clientY
-        };
-      })();
+      // Use the pixel data we already have from the last mouse move
+      if (this._lastPixel) {
+        const { hex, rgb, x, y } = this._lastPixel;
+        if (typeof this.options.onPick === 'function') {
+          this.options.onPick({ hex, rgb, x, y, event: e });
+        }
+        this._resolve({ hex, rgb });
+      } else {
+        // Fallback: get pixel data if somehow we don't have it
+        const position = this._currentPosition || (() => {
+          const rect = this._canvas.getBoundingClientRect();
+          return {
+            x: Math.floor((e.clientX - rect.left) * (this._canvasCache?.scaleX || (this._canvas.width / rect.width))),
+            y: Math.floor((e.clientY - rect.top) * (this._canvasCache?.scaleY || (this._canvas.height / rect.height))),
+          };
+        })();
 
-      // Only now get the actual pixel data when user clicks
-      const pixel = this._getPixelData(position.x, position.y);
-      const hex = this._rgbToHex(pixel[0], pixel[1], pixel[2]);
-      const rgb = [pixel[0], pixel[1], pixel[2]];
-      
-      if (typeof this.options.onPick === 'function') {
-        this.options.onPick({ hex, rgb, x: position.x, y: position.y, event: e });
+        // Simple getImageData call - optimized by willReadFrequently context
+        const imageData = this._canvasCache.ctx.getImageData(position.x, position.y, 1, 1);
+        const [r, g, b] = imageData.data;
+        const hex = this._rgbToHex(r, g, b);
+        const rgb = [r, g, b];
+        
+        if (typeof this.options.onPick === 'function') {
+          this.options.onPick({ hex, rgb, x: position.x, y: position.y, event: e });
+        }
+        this._resolve({ hex, rgb });
       }
-      this._resolve({ hex, rgb });
       this._removeUI();
     }
 
@@ -396,9 +396,9 @@ class EyeDropper {
         this._magCanvas.height = newHeight;
       }
       
-      // Use cached context
+      // Use cached context with willReadFrequently optimization
       if (!this._magCtx) {
-        this._magCtx = this._magCanvas.getContext('2d');
+        this._magCtx = this._magCanvas.getContext('2d', { willReadFrequently: true });
         this._magCtx.imageSmoothingEnabled = false;
       }
       
