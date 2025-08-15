@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste - @ltcode/eyedropper</title>
+  <style>
+    body { font-family: sans-serif; background: #f5f5f5; margin: 0; padding: 32px; }
+    #canvas { border: 2px solid #333; background: #fff; }
+    #btn { margin-top: 24px; padding: 12px 24px; font-size: 1.1em; }
+  </style>
+</head>
+<body>
+  <h1>Test - @ltcode/eyedropper</h1>
+  <div id="warning" style="color:#b71c1c;font-weight:bold;margin-bottom:16px;display:none;">WARNING: To load images, open this file using a local server (e.g. <code>pnpm dlx serve test</code> or <code>python3 -m http.server</code>).</div>
+  <input type="file" id="fileInput" accept="image/*" style="margin-bottom:16px;">
+  <button id="btnUnsplash" style="margin-bottom:16px;">Load example image</button>
+  <br>
+  <canvas id="canvas" width="500" height="300"></canvas>
+  <br>
+  <button id="btn">Selecionar cor</button>
+  <div id="result" style="margin-top:24px;font-size:1.2em;"></div>
+  <script type="module">
+    // Warning if running via file://
+    if (window.location.protocol === 'file:') {
+      document.getElementById('warning').style.display = 'block';
+    }
+    import EyeDropper from '../src/EyeDropper.js';
+
+    // Function to draw image on canvas
+    function drawImageToCanvas(img) {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      // Adjust canvas size to image, but limit to 800x600
+      const maxW = 800, maxH = 600;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > maxW) { h = Math.round(h * (maxW / w)); w = maxW; }
+      if (h > maxH) { w = Math.round(w * (maxH / h)); h = maxH; }
+      canvas.width = w;
+      canvas.height = h;
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+    }
+
+    // Draw default pattern
+    function drawDefault() {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 500;
+      canvas.height = 300;
+      ctx.fillStyle = '#3498db';
+      ctx.fillRect(0, 0, 250, 300);
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillRect(250, 0, 250, 300);
+      ctx.beginPath();
+      ctx.arc(250, 150, 80, 0, 2 * Math.PI);
+      ctx.fillStyle = '#2ecc40';
+      ctx.fill();
+    }
+    drawDefault();
+
+    // Image upload
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new window.Image();
+      img.onload = () => drawImageToCanvas(img);
+      img.onerror = () => alert('Error loading image.');
+      img.src = URL.createObjectURL(file);
+    });
+
+    // Load Unsplash example image
+    document.getElementById('btnUnsplash').onclick = () => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => drawImageToCanvas(img);
+      img.onerror = () => alert('Error loading example image.');
+      // Force jpg format to avoid CORS issues
+      img.src = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&fm=jpg';
+    };
+
+    document.getElementById('btn').onclick = async () => {
+      const canvas = document.getElementById('canvas');
+      const eyedropper = new EyeDropper();
+      const color = await eyedropper.open(canvas);
+      document.getElementById('result').innerHTML =
+        `<span style='display:inline-block;width:32px;height:32px;background:${color.hex};border:1px solid #ccc;vertical-align:middle;'></span> ` +
+        `<b>${color.hex}</b> (${color.rgb.join(', ')})`;
+    };
+  </script>
+</body>
+</html>

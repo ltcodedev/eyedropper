@@ -1,0 +1,11 @@
+src/
+.github/
+*.test.js
+*.spec.js
+.idea/
+.vscode/
+README.md
+.env
+.DS_Store
+*.log
+coverage/

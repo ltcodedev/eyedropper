@@ -1,0 +1,25 @@
+{
+  "name": "eyedropper",
+  "version": "1.0.0-alpha",
+  "description": "Biblioteca EyeDropper para seleção de cor de pixels em imagens, com magnifier pixelado. Compatível com webapps, Electron e outros.",
+  "main": "dist/EyeDropper.js",
+  "module": "dist/EyeDropper.js",
+  "types": "dist/EyeDropper.d.ts",
+  "files": ["dist"],
+  "scripts": {
+  "dev": "pnpm dlx live-serve ./src",
+  "build": "mkdir -p dist && cp src/EyeDropper.js dist/EyeDropper.js",
+  "prepublishOnly": "pnpm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ltcodedev/eyedropper.git"
+  },
+  "keywords": ["eyedropper", "color picker", "canvas", "magnifier", "web", "electron"],
+  "author": "ltcodedev",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ltcodedev/eyedropper/issues"
+  },
+  "homepage": "https://github.com/ltcodedev/eyedropper#readme"
+}
