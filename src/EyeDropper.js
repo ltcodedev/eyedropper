@@ -241,7 +241,40 @@ class EyeDropper {
       const rect = this._canvas.getBoundingClientRect();
       const x = Math.floor((e.clientX - rect.left) * this._canvasCache.scaleX);
       const y = Math.floor((e.clientY - rect.top) * this._canvasCache.scaleY);
-      const pixel = this._canvasCache.ctx.getImageData(x, y, 1, 1).data;
+      
+      // Cache image data region to reduce getImageData calls
+      const cacheSize = 50; // Cache a 50x50 region
+      const cacheKey = `${Math.floor(x / cacheSize)}_${Math.floor(y / cacheSize)}`;
+      
+      if (!this._imageDataCache || this._imageDataCache.key !== cacheKey) {
+        const cacheX = Math.floor(x / cacheSize) * cacheSize;
+        const cacheY = Math.floor(y / cacheSize) * cacheSize;
+        const width = Math.min(cacheSize, this._canvas.width - cacheX);
+        const height = Math.min(cacheSize, this._canvas.height - cacheY);
+        
+        this._imageDataCache = {
+          key: cacheKey,
+          data: this._canvasCache.ctx.getImageData(cacheX, cacheY, width, height),
+          startX: cacheX,
+          startY: cacheY,
+          width: width,
+          height: height
+        };
+      }
+      
+      // Get pixel from cached region
+      const localX = x - this._imageDataCache.startX;
+      const localY = y - this._imageDataCache.startY;
+      const pixelIndex = (localY * this._imageDataCache.width + localX) * 4;
+      const cachedData = this._imageDataCache.data.data;
+      
+      const pixel = [
+        cachedData[pixelIndex],     // R
+        cachedData[pixelIndex + 1], // G
+        cachedData[pixelIndex + 2], // B
+        cachedData[pixelIndex + 3]  // A
+      ];
+      
       const hex = this._rgbToHex(pixel[0], pixel[1], pixel[2]);
       const rgb = [pixel[0], pixel[1], pixel[2]];
 
@@ -397,6 +430,7 @@ class EyeDropper {
       this._magCanvas = null;
       this._magCtx = null;
       this._mouseThrottle = false;
+      this._imageDataCache = null;
     }
 
   /**
