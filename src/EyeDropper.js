@@ -225,23 +225,8 @@ class EyeDropper {
       this._preview.style.display = 'flex';
     }
 
-    _onMouseMove(e) {
-      // Cache canvas context and dimensions if not cached
-      if (!this._canvasCache) {
-        const rect = this._canvas.getBoundingClientRect();
-        this._canvasCache = {
-          ctx: this._canvas.getContext('2d'),
-          scaleX: this._canvas.width / rect.width,
-          scaleY: this._canvas.height / rect.height,
-          magW: parseInt((this.options.magnifier && this.options.magnifier.width) || 80, 10),
-          magH: parseInt((this.options.magnifier && this.options.magnifier.height) || 80, 10)
-        };
-      }
-
-      const rect = this._canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) * this._canvasCache.scaleX);
-      const y = Math.floor((e.clientY - rect.top) * this._canvasCache.scaleY);
-      
+    // Helper method to get pixel data efficiently using cache
+    _getPixelData(x, y) {
       // Cache image data region to reduce getImageData calls
       const cacheSize = 50; // Cache a 50x50 region
       const cacheKey = `${Math.floor(x / cacheSize)}_${Math.floor(y / cacheSize)}`;
@@ -268,13 +253,33 @@ class EyeDropper {
       const pixelIndex = (localY * this._imageDataCache.width + localX) * 4;
       const cachedData = this._imageDataCache.data.data;
       
-      const pixel = [
+      return [
         cachedData[pixelIndex],     // R
         cachedData[pixelIndex + 1], // G
         cachedData[pixelIndex + 2], // B
         cachedData[pixelIndex + 3]  // A
       ];
+    }
+
+    _onMouseMove(e) {
+      // Cache canvas context and dimensions if not cached
+      if (!this._canvasCache) {
+        const rect = this._canvas.getBoundingClientRect();
+        this._canvasCache = {
+          ctx: this._canvas.getContext('2d'),
+          scaleX: this._canvas.width / rect.width,
+          scaleY: this._canvas.height / rect.height,
+          magW: parseInt((this.options.magnifier && this.options.magnifier.width) || 80, 10),
+          magH: parseInt((this.options.magnifier && this.options.magnifier.height) || 80, 10)
+        };
+      }
+
+      const rect = this._canvas.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) * this._canvasCache.scaleX);
+      const y = Math.floor((e.clientY - rect.top) * this._canvasCache.scaleY);
       
+      // Use helper method to get pixel data efficiently
+      const pixel = this._getPixelData(x, y);
       const hex = this._rgbToHex(pixel[0], pixel[1], pixel[2]);
       const rgb = [pixel[0], pixel[1], pixel[2]];
 
@@ -344,16 +349,27 @@ class EyeDropper {
     }
 
     _onClick(e) {
-      const rect = this._canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) * (this._canvas.width / rect.width));
-      const y = Math.floor((e.clientY - rect.top) * (this._canvas.height / rect.height));
-      const ctx = this._canvas.getContext('2d');
-      const pixel = ctx.getImageData(x, y, 1, 1).data;
-      const hex = this._rgbToHex(pixel[0], pixel[1], pixel[2]);
-      if (typeof this.options.onPick === 'function') {
-        this.options.onPick({ hex, rgb: [pixel[0], pixel[1], pixel[2]], x, y, event: e });
+      // Always use cached pixel data from last mouse move for best performance
+      if (this._lastPixel) {
+        const { hex, rgb, x, y } = this._lastPixel;
+        if (typeof this.options.onPick === 'function') {
+          this.options.onPick({ hex, rgb, x, y, event: e });
+        }
+        this._resolve({ hex, rgb });
+      } else {
+        // Fallback if no last pixel (shouldn't happen in normal usage)
+        const rect = this._canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) * (this._canvasCache?.scaleX || (this._canvas.width / rect.width)));
+        const y = Math.floor((e.clientY - rect.top) * (this._canvasCache?.scaleY || (this._canvas.height / rect.height)));
+        const pixel = this._getPixelData(x, y);
+        const hex = this._rgbToHex(pixel[0], pixel[1], pixel[2]);
+        const rgb = [pixel[0], pixel[1], pixel[2]];
+        
+        if (typeof this.options.onPick === 'function') {
+          this.options.onPick({ hex, rgb, x, y, event: e });
+        }
+        this._resolve({ hex, rgb });
       }
-      this._resolve({ hex, rgb: [pixel[0], pixel[1], pixel[2]] });
       this._removeUI();
     }
 
