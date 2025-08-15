@@ -1,5 +1,5 @@
 {
-  "name": "eyedropper",
+  "name": "@ltcode/eyedropper",
   "version": "1.0.0-alpha",
   "description": "Biblioteca EyeDropper para seleção de cor de pixels em imagens, com magnifier pixelado. Compatível com webapps, Electron e outros.",
   "main": "dist/EyeDropper.js",
