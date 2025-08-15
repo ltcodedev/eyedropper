@@ -1,6 +1,6 @@
 {
   "name": "@ltcode/eyedropper",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "EyeDropper library for picking pixel color from images/canvas with a pixelated magnifier. Compatible with webapps, Electron, and more.",
   "main": "dist/EyeDropper.js",
   "module": "dist/EyeDropper.js",
