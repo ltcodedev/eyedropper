@@ -222,4 +222,12 @@ class EyeDropper {
   }
 }
 
+
+// Export for ES Modules
 export default EyeDropper;
+
+// Export for CommonJS (require)
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+  module.exports = EyeDropper;
+  module.exports.default = EyeDropper;
+}

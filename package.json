@@ -1,10 +1,16 @@
 {
   "name": "@ltcode/eyedropper",
-  "version": "1.0.0-alpha",
-  "description": "Biblioteca EyeDropper para seleção de cor de pixels em imagens, com magnifier pixelado. Compatível com webapps, Electron e outros.",
+  "version": "1.0.1-alpha",
+  "description": "EyeDropper library for picking pixel color from images/canvas with a pixelated magnifier. Compatible with webapps, Electron, and more.",
   "main": "dist/EyeDropper.js",
   "module": "dist/EyeDropper.js",
   "types": "dist/EyeDropper.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/EyeDropper.js",
+      "require": "./dist/EyeDropper.js"
+    }
+  },
   "files": ["dist"],
   "scripts": {
   "dev": "pnpm dlx live-serve ./src",
