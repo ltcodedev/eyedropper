@@ -1,4 +1,34 @@
 
+class EyeDropper {
+  /**
+   * Utility to draw an <img> element onto a <canvas> (for React usage)
+   * @param {HTMLImageElement} img - The image element
+   * @param {HTMLCanvasElement} canvas - The canvas element
+   * @param {Object} [options] - { cover: boolean } (if true, image will cover canvas, else fit)
+   */
+  static drawImageToCanvas(img, canvas, options = {}) {
+    if (!img || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let dx = 0, dy = 0, dw = canvas.width, dh = canvas.height;
+    if (options.cover) {
+      // Cover logic (center crop)
+      const ratio = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+      dw = img.naturalWidth * ratio;
+      dh = img.naturalHeight * ratio;
+      dx = (canvas.width - dw) / 2;
+      dy = (canvas.height - dh) / 2;
+    } else {
+      // Fit logic
+      const ratio = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+      dw = img.naturalWidth * ratio;
+      dh = img.naturalHeight * ratio;
+      dx = (canvas.width - dw) / 2;
+      dy = (canvas.height - dh) / 2;
+    }
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
+
 // @ltcode/eyedropper
 // Color picker library for selecting pixel color from images/canvas on the web
 
@@ -18,6 +48,34 @@
  * Note: Only call .open() in browser/client-side code (not SSR).
  */
 class EyeDropper {
+  /**
+   * Utility to draw an <img> element onto a <canvas> (for React usage)
+   * @param {HTMLImageElement} img - The image element
+   * @param {HTMLCanvasElement} canvas - The canvas element
+   * @param {Object} [options] - { cover: boolean } (if true, image will cover canvas, else fit)
+   */
+  static drawImageToCanvas(img, canvas, options = {}) {
+    if (!img || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let dx = 0, dy = 0, dw = canvas.width, dh = canvas.height;
+    if (options.cover) {
+      // Cover logic (center crop)
+      const ratio = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+      dw = img.naturalWidth * ratio;
+      dh = img.naturalHeight * ratio;
+      dx = (canvas.width - dw) / 2;
+      dy = (canvas.height - dh) / 2;
+    } else {
+      // Fit logic
+      const ratio = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+      dw = img.naturalWidth * ratio;
+      dh = img.naturalHeight * ratio;
+      dx = (canvas.width - dw) / 2;
+      dy = (canvas.height - dh) / 2;
+    }
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
   /**
    * @param {Object} options - Global customization options (can be overridden in open)
    * @param {Object} [options.magnifier] - Magnifier customization (size, border, color, etc)
@@ -157,7 +215,10 @@ class EyeDropper {
     if (typeof this.options.renderPreview === 'function') {
       this._preview.innerHTML = this.options.renderPreview({ hex, rgb: [pixel[0], pixel[1], pixel[2]], x, y, event: e });
     } else {
-      this._preview.innerHTML = `<span style=\"display:inline-block;width:24px;height:24px;background:${hex};border:1px solid #ccc;\"></span> <span>${hex}</span>`;
+      // Always show HEX, even if color is transparent
+      const colorBox = `<span style="display:inline-block;width:24px;height:24px;background:${hex};border:1px solid #ccc;"></span>`;
+      const hexText = `<span style="font-weight:bold;">${hex}</span>`;
+      this._preview.innerHTML = `${colorBox} ${hexText}`;
     }
     // Position preview below magnifier, centered
     const previewRect = { w: this._preview.offsetWidth, h: this._preview.offsetHeight };

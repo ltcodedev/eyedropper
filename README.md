@@ -3,7 +3,7 @@
 
 # @ltcode/eyedropper
 
-> ⚠️ This library is in **alpha** version (`1.0.0-alpha`). APIs and behavior may change without notice.
+> ⚠️ This library is in **alpha** (`1.1.0`). APIs and behavior may change without notice.
 
 JavaScript library for picking colors (EyeDropper) in web applications, compatible with all modern browsers, including Linux/Wayland environments.
 
@@ -23,21 +23,50 @@ eyedropper.open(canvas).then(color => {
 });
 ```
 
-### Usage with ReactJS
+
+### Usage with ReactJS (with image upload)
 ```jsx
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import EyeDropper from '@ltcode/eyedropper';
 
 function ColorPicker() {
 	const canvasRef = useRef();
+	const imgRef = useRef();
+	const [imgUrl, setImgUrl] = useState();
+
+	const handleImage = (e) => {
+		const file = e.target.files[0];
+		if (file) {
+			const url = URL.createObjectURL(file);
+			setImgUrl(url);
+		}
+	};
+
+	const drawImage = () => {
+		if (imgRef.current && canvasRef.current) {
+			EyeDropper.drawImageToCanvas(imgRef.current, canvasRef.current);
+		}
+	};
+
 	const pickColor = async () => {
 		const eyedropper = new EyeDropper();
 		const color = await eyedropper.open(canvasRef.current);
 		alert(color.hex);
 	};
+
 	return (
 		<>
-			<canvas ref={canvasRef} width={300} height={200} />
+			<input type="file" accept="image/*" onChange={handleImage} />
+			{imgUrl && (
+				<img
+					ref={imgRef}
+					src={imgUrl}
+					alt="preview"
+					style={{ display: 'none' }}
+					onLoad={drawImage}
+				/>
+			)}
+			<canvas ref={canvasRef} width={300} height={200} style={{ border: '1px solid #ccc' }} />
 			<button onClick={pickColor}>Pick color</button>
 		</>
 	);
