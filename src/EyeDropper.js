@@ -33,25 +33,32 @@ class EyeDropper {
    * @param {Object} [options] - { cover: boolean } (if true, image will cover canvas, else fit)
    */
   static drawImageToCanvas(img, canvas, options = {}) {
-    if (!img || !canvas) return;
+    if (!img || !canvas || !img.naturalWidth || !img.naturalHeight) return;
+    
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let dx = 0, dy = 0, dw = canvas.width, dh = canvas.height;
+    const { width: canvasW, height: canvasH } = canvas;
+    const { naturalWidth: imgW, naturalHeight: imgH } = img;
+    
+    ctx.clearRect(0, 0, canvasW, canvasH);
+    
+    let dx, dy, dw, dh;
+    
     if (options.cover) {
-      // Cover logic (center crop)
-      const ratio = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
-      dw = img.naturalWidth * ratio;
-      dh = img.naturalHeight * ratio;
-      dx = (canvas.width - dw) / 2;
-      dy = (canvas.height - dh) / 2;
+      // Cover logic (center crop) - optimized calculations
+      const ratio = Math.max(canvasW / imgW, canvasH / imgH);
+      dw = imgW * ratio;
+      dh = imgH * ratio;
+      dx = (canvasW - dw) * 0.5; // Faster than division by 2
+      dy = (canvasH - dh) * 0.5;
     } else {
-      // Fit logic
-      const ratio = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
-      dw = img.naturalWidth * ratio;
-      dh = img.naturalHeight * ratio;
-      dx = (canvas.width - dw) / 2;
-      dy = (canvas.height - dh) / 2;
+      // Fit logic - optimized calculations
+      const ratio = Math.min(canvasW / imgW, canvasH / imgH);
+      dw = imgW * ratio;
+      dh = imgH * ratio;
+      dx = (canvasW - dw) * 0.5;
+      dy = (canvasH - dh) * 0.5;
     }
+    
     ctx.drawImage(img, dx, dy, dw, dh);
   }
   /**
@@ -193,11 +200,22 @@ class EyeDropper {
       // Initialize last pixel data for when mouse leaves
       this._lastPixel = null;
 
-  // Events
-  this._canvas.addEventListener('mousemove', this._onMouseMoveBound = this._onMouseMove.bind(this));
-  this._canvas.addEventListener('mouseleave', this._onMouseLeaveBound = this._onMouseLeave.bind(this));
-  this._canvas.addEventListener('mouseenter', this._onMouseEnterBound = this._onMouseEnter.bind(this));
+  // Events with throttled mouse move for better performance
+  this._canvas.addEventListener('mousemove', this._onMouseMoveBound = this._throttledMouseMove.bind(this), { passive: true });
+  this._canvas.addEventListener('mouseleave', this._onMouseLeaveBound = this._onMouseLeave.bind(this), { passive: true });
+  this._canvas.addEventListener('mouseenter', this._onMouseEnterBound = this._onMouseEnter.bind(this), { passive: true });
   this._canvas.addEventListener('click', this._onClickBound = this._onClick.bind(this));
+    }
+
+    // Throttled mouse move for better performance
+    _throttledMouseMove(e) {
+      if (!this._mouseThrottle) {
+        this._mouseThrottle = true;
+        requestAnimationFrame(() => {
+          this._onMouseMove(e);
+          this._mouseThrottle = false;
+        });
+      }
     }
 
     _onMouseEnter(e) {
@@ -208,23 +226,32 @@ class EyeDropper {
     }
 
     _onMouseMove(e) {
+      // Cache canvas context and dimensions if not cached
+      if (!this._canvasCache) {
+        const rect = this._canvas.getBoundingClientRect();
+        this._canvasCache = {
+          ctx: this._canvas.getContext('2d'),
+          scaleX: this._canvas.width / rect.width,
+          scaleY: this._canvas.height / rect.height,
+          magW: parseInt((this.options.magnifier && this.options.magnifier.width) || 80, 10),
+          magH: parseInt((this.options.magnifier && this.options.magnifier.height) || 80, 10)
+        };
+      }
+
       const rect = this._canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) * (this._canvas.width / rect.width));
-      const y = Math.floor((e.clientY - rect.top) * (this._canvas.height / rect.height));
-      const ctx = this._canvas.getContext('2d');
-      const pixel = ctx.getImageData(x, y, 1, 1).data;
+      const x = Math.floor((e.clientX - rect.left) * this._canvasCache.scaleX);
+      const y = Math.floor((e.clientY - rect.top) * this._canvasCache.scaleY);
+      const pixel = this._canvasCache.ctx.getImageData(x, y, 1, 1).data;
       const hex = this._rgbToHex(pixel[0], pixel[1], pixel[2]);
+      const rgb = [pixel[0], pixel[1], pixel[2]];
 
       // Store last pixel data
-      this._lastPixel = { hex, rgb: [pixel[0], pixel[1], pixel[2]], x, y, clientX: e.clientX, clientY: e.clientY };
+      this._lastPixel = { hex, rgb, x, y, clientX: e.clientX, clientY: e.clientY };
 
-    // Magnifier
+    // Magnifier positioning
     this._magnifier.style.display = 'block';
-    // Center magnifier on cursor
-    const magW = parseInt((this.options.magnifier && this.options.magnifier.width) || 80, 10);
-    const magH = parseInt((this.options.magnifier && this.options.magnifier.height) || 80, 10);
-    this._magnifier.style.left = `${e.clientX - magW / 2}px`;
-    this._magnifier.style.top = `${e.clientY - magH / 2}px`;
+    this._magnifier.style.left = `${e.clientX - this._canvasCache.magW / 2}px`;
+    this._magnifier.style.top = `${e.clientY - this._canvasCache.magH / 2}px`;
     
     this._drawMagnifier(x, y);
 
@@ -232,7 +259,7 @@ class EyeDropper {
     this._preview.style.display = 'flex';
     // Custom HTML or default
     if (typeof this.options.renderPreview === 'function') {
-      this._preview.innerHTML = this.options.renderPreview({ hex, rgb: [pixel[0], pixel[1], pixel[2]], x, y, event: e });
+      this._preview.innerHTML = this.options.renderPreview({ hex, rgb, x, y, event: e });
     } else {
       // Always show HEX, even if color is transparent
       const colorBox = `<span style="display:inline-block;width:24px;height:24px;background:${hex};border:1px solid #ccc;"></span>`;
@@ -241,25 +268,22 @@ class EyeDropper {
     }
     // Position preview below magnifier, centered
     const previewRect = { w: this._preview.offsetWidth, h: this._preview.offsetHeight };
-    const px = e.clientX - magW / 2;
-    const py = e.clientY + magH / 2 + 8;
-    this._preview.style.left = `${px + magW / 2 - previewRect.w / 2}px`;
+    const px = e.clientX - this._canvasCache.magW / 2;
+    const py = e.clientY + this._canvasCache.magH / 2 + 8;
+    this._preview.style.left = `${px + this._canvasCache.magW / 2 - previewRect.w / 2}px`;
     this._preview.style.top = `${py}px`;
     // Callback onMove
     if (typeof this.options.onMove === 'function') {
-      this.options.onMove({ hex, rgb: [pixel[0], pixel[1], pixel[2]], x, y, event: e });
+      this.options.onMove({ hex, rgb, x, y, event: e });
     }
     }
 
     _onMouseLeave() {
       // Keep magnifier and preview visible showing last selected pixel
-      if (this._lastPixel) {
-        const magW = parseInt((this.options.magnifier && this.options.magnifier.width) || 80, 10);
-        const magH = parseInt((this.options.magnifier && this.options.magnifier.height) || 80, 10);
-        
-        // Keep magnifier at last position
-        this._magnifier.style.left = `${this._lastPixel.clientX - magW / 2}px`;
-        this._magnifier.style.top = `${this._lastPixel.clientY - magH / 2}px`;
+      if (this._lastPixel && this._canvasCache) {
+        // Keep magnifier at last position using cached dimensions
+        this._magnifier.style.left = `${this._lastPixel.clientX - this._canvasCache.magW / 2}px`;
+        this._magnifier.style.top = `${this._lastPixel.clientY - this._canvasCache.magH / 2}px`;
         
         this._drawMagnifier(this._lastPixel.x, this._lastPixel.y);
         
@@ -274,9 +298,9 @@ class EyeDropper {
         
         // Position preview below magnifier
         const previewRect = { w: this._preview.offsetWidth, h: this._preview.offsetHeight };
-        const px = this._lastPixel.clientX - magW / 2;
-        const py = this._lastPixel.clientY + magH / 2 + 8;
-        this._preview.style.left = `${px + magW / 2 - previewRect.w / 2}px`;
+        const px = this._lastPixel.clientX - this._canvasCache.magW / 2;
+        const py = this._lastPixel.clientY + this._canvasCache.magH / 2 + 8;
+        this._preview.style.left = `${px + this._canvasCache.magW / 2 - previewRect.w / 2}px`;
         this._preview.style.top = `${py}px`;
       } else {
         // If no last pixel, hide elements and restore cursor
@@ -301,39 +325,52 @@ class EyeDropper {
     }
 
     _drawMagnifier(x, y) {
-      // Create a temporary canvas for the magnifier
-      const size = (this.options.magnifier && this.options.magnifier.size) || 20;
-      const zoom = (this.options.magnifier && this.options.magnifier.zoom) || 4;
-      const ctx = this._canvas.getContext('2d');
+      // Cache magnifier options on first use
+      if (!this._magnifierCache) {
+        this._magnifierCache = {
+          size: (this.options.magnifier && this.options.magnifier.size) || 20,
+          zoom: (this.options.magnifier && this.options.magnifier.zoom) || 4
+        };
+      }
+
+      const { size, zoom } = this._magnifierCache;
       
       // Create or reuse magnifier canvas
-      let magCanvas = this._magnifier.querySelector('.eyedropper-magnifier-canvas');
-      if (!magCanvas) {
-        magCanvas = document.createElement('canvas');
-        magCanvas.className = 'eyedropper-magnifier-canvas';
-        magCanvas.id = 'eyedropper-magnifier-canvas';
+      if (!this._magCanvas) {
+        this._magCanvas = document.createElement('canvas');
+        this._magCanvas.className = 'eyedropper-magnifier-canvas';
+        this._magCanvas.id = 'eyedropper-magnifier-canvas';
         // Insert canvas before crosshair to maintain proper z-order
-        this._magnifier.insertBefore(magCanvas, this._crosshair);
+        this._magnifier.insertBefore(this._magCanvas, this._crosshair);
       }
       
-      magCanvas.width = size * zoom;
-      magCanvas.height = size * zoom;
-      const magCtx = magCanvas.getContext('2d');
-      magCtx.imageSmoothingEnabled = false;
-      magCtx.drawImage(
+      // Only resize if dimensions changed
+      const newWidth = size * zoom;
+      const newHeight = size * zoom;
+      if (this._magCanvas.width !== newWidth || this._magCanvas.height !== newHeight) {
+        this._magCanvas.width = newWidth;
+        this._magCanvas.height = newHeight;
+      }
+      
+      // Use cached context
+      if (!this._magCtx) {
+        this._magCtx = this._magCanvas.getContext('2d');
+        this._magCtx.imageSmoothingEnabled = false;
+      }
+      
+      this._magCtx.drawImage(
         this._canvas,
         x - size / 2, y - size / 2, size, size,
-        0, 0, size * zoom, size * zoom
+        0, 0, newWidth, newHeight
       );
     }
 
     _rgbToHex(r, g, b) {
-      return (
-        '#' +
-        [r, g, b]
-          .map((x) => x.toString(16).padStart(2, '0'))
-          .join('')
-      );
+      // Faster bitwise conversion without array creation
+      return '#' + 
+        ((1 << 24) + (r << 16) + (g << 8) + b)
+          .toString(16)
+          .slice(1);
     }
 
     _removeUI() {
@@ -348,12 +385,18 @@ class EyeDropper {
         this._canvas.removeEventListener('mouseenter', this._onMouseEnterBound);
         this._canvas.removeEventListener('click', this._onClickBound);
       }
+      // Clear all cached references and data
       this._container = null;
       this._canvas = null;
       this._magnifier = null;
       this._crosshair = null;
       this._preview = null;
       this._lastPixel = null;
+      this._canvasCache = null;
+      this._magnifierCache = null;
+      this._magCanvas = null;
+      this._magCtx = null;
+      this._mouseThrottle = false;
     }
 
   /**
