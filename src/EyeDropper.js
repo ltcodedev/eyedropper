@@ -219,7 +219,7 @@ class EyeDropper {
       this._colorDisplay = document.createElement('span');
       this._colorDisplay.className = 'eyedropper-color-display';
       this._colorDisplay.id = 'eyedropper-color-display';
-      this._colorDisplay.textContent = '#000000';
+      this._colorDisplay.textContent = '';
 
       this._preview.appendChild(this._previewColor);
       this._preview.appendChild(this._colorDisplay);
@@ -247,17 +247,9 @@ class EyeDropper {
     }
 
     _onMouseEnter(e) {
-      // Hide cursor and show magnifier and preview on mouse enter
+      // Hide cursor and show magnifier on mouse enter (preview will be shown when mouse moves)
       this._canvas.style.cursor = 'none';
       this._magnifier.style.display = 'block';
-      this._preview.style.display = 'flex';
-    }
-
-        _onMouseEnter(e) {
-      // Hide cursor and show magnifier and preview on mouse enter
-      this._canvas.style.cursor = 'none';
-      this._magnifier.style.display = 'block';
-      this._preview.style.display = 'flex';
     }
 
         _onMouseMove(e) {
@@ -273,6 +265,9 @@ class EyeDropper {
       const hexColor = this._rgbToHex(r, g, b);
       this._previewColor.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
       this._colorDisplay.textContent = hexColor;
+
+      // Show preview now that we have valid data
+      this._preview.style.display = 'flex';
 
       // Update magnifier position and content
       this._updateMagnifier(x, y, e, [r, g, b], hexColor);
@@ -306,20 +301,21 @@ class EyeDropper {
 
     _onMouseLeave() {
       // Keep magnifier and preview visible showing last selected pixel
-      if (this._lastPixel && this._canvasCache) {
+      if (this._lastPixel && this._canvasCache && this._lastPixel.hex && this._lastPixel.rgb) {
         // Keep magnifier at last position using cached dimensions
         this._magnifier.style.left = `${this._lastPixel.clientX - this._canvasCache.magW / 2}px`;
         this._magnifier.style.top = `${this._lastPixel.clientY - this._canvasCache.magH / 2}px`;
         
         this._drawMagnifier(this._lastPixel.x, this._lastPixel.y);
         
-        // Keep preview with last pixel data
+        // Keep preview with last pixel data using proper elements
         if (typeof this.options.renderPreview === 'function') {
           this._preview.innerHTML = this.options.renderPreview(this._lastPixel);
         } else {
-          const colorBox = `<span style="display:inline-block;width:24px;height:24px;background:${this._lastPixel.hex};border:1px solid #ccc;"></span>`;
-          const hexText = `<span style="font-weight:bold;">${this._lastPixel.hex}</span>`;
-          this._preview.innerHTML = `${colorBox} ${hexText}`;
+          // Update the preview elements properly with valid data
+          this._previewColor.style.backgroundColor = `rgb(${this._lastPixel.rgb[0]}, ${this._lastPixel.rgb[1]}, ${this._lastPixel.rgb[2]})`;
+          this._colorDisplay.textContent = this._lastPixel.hex;
+          this._preview.style.display = 'flex';
         }
         
         // Position preview below magnifier
@@ -329,7 +325,7 @@ class EyeDropper {
         this._preview.style.left = `${px + this._canvasCache.magW / 2 - previewRect.w / 2}px`;
         this._preview.style.top = `${py}px`;
       } else {
-        // If no last pixel, hide elements and restore cursor
+        // If no valid last pixel, hide elements and restore cursor
         this._canvas.style.cursor = 'default';
         this._magnifier.style.display = 'none';
         this._preview.style.display = 'none';

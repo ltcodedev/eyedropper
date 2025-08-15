@@ -110,7 +110,6 @@ function ColorPicker() {
 ## Features
 - 🔍 **Magnifier with crosshair** for pixel precision
 - 🎨 **Real-time color preview** with HEX values
-- ⚡ **Optimized performance** with Canvas2D `willReadFrequently`
 - 🎭 **Customizable styling** with CSS classes and IDs
 - 🖼️ **Multiple formats** support (canvas, images, URLs)
 - 📱 **Touch-friendly** interface
