@@ -1,0 +1,45 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 2rem;
+  background: #f5f5f5;
+}
+#canvasContainer {
+  margin-top: 1rem;
+  border: 1px solid #ccc;
+  display: inline-block;
+  background: #fff;
+  position: relative;
+}
+#imageCanvas {
+  max-width: 100%;
+  cursor: crosshair;
+}
+#magnifier {
+  border: 2px solid #333;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  image-rendering: pixelated;
+  width: 80px;
+  height: 80px;
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  z-index: 10;
+}
+#colorInfo {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+#colorPreview {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #333;
+  display: inline-block;
+  vertical-align: middle;
+}
+#colorValue {
+  font-weight: bold;
+  font-size: 1.2rem;
+}
