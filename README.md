@@ -3,7 +3,7 @@
 
 # @ltcode/eyedropper
 
-> ⚠️ This library is in **alpha** (`1.1.0`). APIs and behavior may change without notice.
+> ⚠️ This library is in **alpha** (`1.2.0`). APIs and behavior may change without notice.
 
 JavaScript library for picking colors (EyeDropper) in web applications, compatible with all modern browsers, including Linux/Wayland environments.
 
