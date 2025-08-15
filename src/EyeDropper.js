@@ -1,34 +1,4 @@
 
-class EyeDropper {
-  /**
-   * Utility to draw an <img> element onto a <canvas> (for React usage)
-   * @param {HTMLImageElement} img - The image element
-   * @param {HTMLCanvasElement} canvas - The canvas element
-   * @param {Object} [options] - { cover: boolean } (if true, image will cover canvas, else fit)
-   */
-  static drawImageToCanvas(img, canvas, options = {}) {
-    if (!img || !canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let dx = 0, dy = 0, dw = canvas.width, dh = canvas.height;
-    if (options.cover) {
-      // Cover logic (center crop)
-      const ratio = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
-      dw = img.naturalWidth * ratio;
-      dh = img.naturalHeight * ratio;
-      dx = (canvas.width - dw) / 2;
-      dy = (canvas.height - dh) / 2;
-    } else {
-      // Fit logic
-      const ratio = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
-      dw = img.naturalWidth * ratio;
-      dh = img.naturalHeight * ratio;
-      dx = (canvas.width - dw) / 2;
-      dy = (canvas.height - dh) / 2;
-    }
-    ctx.drawImage(img, dx, dy, dw, dh);
-  }
-
 // @ltcode/eyedropper
 // Color picker library for selecting pixel color from images/canvas on the web
 
